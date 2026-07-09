@@ -92,3 +92,66 @@ secDef:
   doi: "10.17487/RFC4949"
   url: "https://www.rfc-editor.org/info/rfc4949"
   page-total: 365
+FlexicastGithub:
+  type: repository
+  url: "https://github.com/IPNetworkingLab/Flexicast-quic"
+Tokio: 
+  type: web
+  url: "https://tokio.rs/"
+rustLogo: 
+  type: web
+  url: "https://commons.wikimedia.org/wiki/File:127-1276589_rust-programming-language-logo.png"
+LSD:
+  type: conference
+  title: "The LSD Broadcast Encryption Scheme"
+  authors:
+    - family: Halevy
+      given: Dani
+    - family: Shamir
+      given: Adi
+  editors:
+    - family: Yung
+      given: Moti
+  date: 2002
+  parent:
+    type: proceedings
+    title: "Advances in Cryptology --- CRYPTO 2002"
+    publisher: Springer Berlin Heidelberg
+    location: Berlin, Heidelberg
+  page-range: 47-60
+  doi: "10.1007/3-540-45708-9_4"
+  serial-number:
+    isbn: "978-3-540-45708-4"
+BroadcastEncryption:
+  type: conference
+  title: "Broadcast Encryption"
+  authors:
+    - family: Fiat
+      given: Amos
+    - family: Naor
+      given: Moni
+  date: 1993
+  parents:
+    type: proceedings
+    title: "Advances in Cryptology — CRYPTO '93"
+    editor:
+      - family: Brickell
+        given: Ernest F.
+    publisher: Springer-Verlag
+    location: Berlin, Heidelberg
+  page-range: 480-491
+  serial-number:
+    isbn: "3540577661"
+  doi: "10.1007/3-540-48071-4_38"
+TraitorTracing:
+  type: Article
+  id: cryptoeprint:2001/059
+  authors:
+    - Dalit Naor
+    - Moni Naor
+    - Jeff Lotspiech
+  title: "Revocation and Tracing Schemes for Stateless Receivers"
+  howpublished: "Cryptology ePrint Archive, Paper 2001/059"
+  year: 2001
+  url: "https://eprint.iacr.org/2001/059"
+
