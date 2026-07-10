@@ -102,11 +102,11 @@ Le processus standard pour rejoindre un flot Flexicast procède de la manière s
   
 
 )
-Flexicast Quiche @FlexicastGithub est une implémentation de Flexicast (client et serveur) en Rust#box(image("rust.png",height: 0.5em, ),  baseline: 0.25em)@rustLogo se basant sur l'implémentation de QUIC Quiche de Cloudflare et sur la bibliothèque Tokio@Tokio pour assurer l'exécution multitâche. Tokio est centré sur l'utilisation de tâches qui communiquent par passation de message. Dans Flexicast Quiche, les catégories de taches sont réparties en : 
-- "FC_Flow" (Flexicast flow) : Gère le flux sur l'arbre multicast, communique uniquement avec contrôleur racine
-- "Controller" : Gère la liaison Unicast-Flexicast. Séparé en 2 sous-catégorie pour permettre une scalabilité horizontale en 
-  - un unique contrôleur racine (côté multicast), informe les contrôleur feuille des paquets QUIC envoyés sur le flux multicast
-  - un ensemble de contrôlleur feuille (côté unicast), aggrège les acknowledgements des chemins unicasts
+Flexicast Quiche @FlexicastGithub est une implémentation de Flexicast (client et serveur) en Rust#box(image("rust.png",height: 0.5em, ),  baseline: 0.25em)@rustLogo se basant sur l'implémentation de QUIC Quiche de Cloudflare et sur la bibliothèque Tokio@Tokio pour assurer l'exécution multitâche. Tokio est centré sur l'utilisation de tâches qui communiquent par passage de messages. Dans Flexicast Quiche, les catégories de taches sont réparties en : 
+- "FC_Flow" (Flexicast flow) : Gère le flux sur l'arbre multicast et communique uniquement avec le contrôleur racine
+- "Controller" : Gère la liaison Unicast-Flexicast.Il est séparé en 2 sous-catégories pour permettre une scalabilité horizontale en 
+  - Un unique contrôleur racine (côté multicast), qui informe les contrôleurs feuilles des paquets QUIC envoyés sur le flux multicast.
+  - Un ensemble de contrôlleurs feuilles (côté unicast), aggrègent les acquittements des chemins unicasts.
 - "UC" (Unicast) : Un ensemble de controlleur, chacun gère une unique connection QUIC unicast avec un client et peut communiquer avec un unique contrôleur feuille.  
 La synchronisation entre les chemins unicasts et le flot Flexicast est réalisée par un message envoyé périodiquement depuis le "FC_Flow" informant les contrôleur du dernier numéro de paquet envoyé. 
 Lorsqu'un client choisit de rejoindre le flot Flexicast, un message annoncant l'arrivée d'un nouveau client est propagé depuis les connexions UC vers les controleur feuille. 
