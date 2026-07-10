@@ -48,7 +48,7 @@ Je souhaite d'autre part remercier Louis NAVARE pour son
 #pagebreak()
 
 // Table of contents
-#outline(title: [index], indent: 1em, depth: 2)
+#outline(title: [Table des matières], indent: 1em, depth: 2)
 
 // Defining header and page numbering (will pagebreak)
 #show: template.apply-header-footer.with(short-title: short-title)
@@ -56,54 +56,53 @@ Je souhaite d'autre part remercier Louis NAVARE pour son
 
 // Introduction
 #heading(level: 1)[Introduction]
+Les services de diffusion de vidéo en direct fonctionnent sur le principe de la distribution d'un même contenu à plusieurs récepteurs. Cependant, la diffusion est majoritairement réalisée via un routage unicast (1 vers 1) @Livenet, et certains contenus requièrent le chiffrement de ce flux, par exemple dans le cas de services payants. L'unicast implique donc que le serveur chiffre séparément chaque paquet pour chaque récepteur. Cela entraîne un coût calculatoire important : par exemple, le chiffrement d'un flux pour 400 récepteurs sature le serveur, alors qu'un flux UDP pur n'implique aucun coût mesurable (figure 5) @Flexicast.
 
-  Les services de diffusion de vidéo en direct fonctionnent sur le principe de la diffusion d'un même contenu à plusieurs receveurs. Cependant, la diffusion est majoritairement réalisée avec un routage unicast (1 vers 1)@Livenet or certain contenu requierent le chiffrement de ce flux, par exemple pour des contenus payant. L'unicast implique donc que le serveur chiffre séparément pour chaque receveurs et ce, pour chaque paquet. Cela entraine un coût calculatoire important, par exemple le chiffrement d'un flux pour 400 receveurs sature le serveur relativement à un flux UDP pur qui n'implique pas de cout mesurable (figure 5)@Flexicast. 
+Dans ce contexte, l'utilisation d'une diffusion en multicast (1 vers $n$) permettrait théoriquement de ne chiffrer qu'une fois chaque paquet. Dans cette optique, Flexicast (#emph("Flexi")ble Multi#emph("cast")) @Flexicast permet d'offrir une communication multicast chiffrée.
+Cependant, à l'heure de la rédaction de ce rapport, la spécification Flexicast ne définit pas encore de protocole pour la rotation des clés. Le flux est actuellement chiffré avec une clé statique. Les récepteurs peuvent donc déchiffrer les paquets émis avant qu'ils n'aient rejoint le flux et après l'avoir quitté. Ainsi, Flexicast ne fournit pas de confidentialité persistante (_Perfect Forward Secrecy_) @secDef, ce qui est pourtant nécessaire pour la diffusion de contenus payants (un utilisateur ne devant avoir accès au service que pendant la durée de son abonnement). Il faut donc changer la clé dès qu'un utilisateur rejoint ou quitte l'arbre de diffusion. Une méthode efficace de rotation de clé est donc nécessaire. Ce rapport propose une implémentation de rotation de clé basée sur la Hiérarchie Logique de Clés (_Logical Key Hierarchy_ ou LKH) @cannetiMulticast pour Flexicast.
 
-  Dans ce sens, l'utilisation d'une diffusion en multicast (1 vers n), permettrait théoriquement de ne chiffrer qu'une fois chaque paquet. Dans cette optique, Flexicast (#emph("Flexi")ble Multi#emph("cast")) @Flexicast permet d'offrir une communication chiffrée multicast. 
-  Cependant, à la rédaction de ce rapport, la spécification Flexicast ne spécifie pas encore de protocole pour la rotation de clé. Le flux est chiffré avec une clé statique. Les receveurs peuvent donc déchiffrer les paquets émis avant qu'ils aient rejoint le flux et après en être parti. Ainsi, Flexicast ne fournit pas de confidentialité persistante (_Perfect Forward Secrecy_) @secDef ce qui est nécessaire, par exemple, pour de la diffusion de contenu payant (Un utilisateur ne peut avoir accès au service que pendant qu'il paye). Il faut donc changer la clé dès qu'un utilisateur rejoint ou quitte l'arbre. Une méthode efficace de rotation de clé est donc nécessaire. Ce rapport propose une implémentation de rotation de clé basée sur la Hiérarchie Logique de Clé (_Logical Key Hierarchy_ ou LKH) @cannetiMulticast pour Flexicast. 
 
 == Contexte
-=== confidentialité persistante
-La confidentialité persistante est définie dans @secDef comme la résistance à la découverte d'une clé privé sans compromettre les paquets précédents. 
+=== Confidentialité persistante
+La confidentialité persistante est définie dans @secDef comme la résistance à la découverte d'une clé privée sans compromettre les paquets précédents. 
 === QUIC
-QUIC @RFCQuic est un protocole de couche 4 modulaire, léger, fiable et chiffré. Celui-ci repose sur de l'UDP. Les caractéristique remarquable de QUIC pour ce rapport sont : 
-- Un datagramme UDP peut contenir plusieurs paquets QUIC
-- Un paquet QUIC peut contenir plusieurs _frame_ QUIC et est chiffré et authentifié par une clé symétrique. 
-- Une frame QUIC est l'unité de donnée contenant les données application et les données de controle. 
+QUIC @RFCQuic est un protocole de couche 4 modulaire, léger, fiable et chiffré, reposant sur UDP. Les caractéristiques remarquables de QUIC pour ce rapport sont : 
+- Un datagramme UDP peut contenir plusieurs paquets QUIC.
+- Un paquet QUIC peut contenir plusieurs _frames_ QUIC et est chiffré et authentifié par une clé symétrique. 
+- Une frame QUIC est l'unité de donnée contenant les données applicatives et les données de contrôles. 
 
 === QUIC Multipath 
-QUIC Multipath (QUIC-MP) @Multipath est une extension de QUIC ajoutant la possibilité pour une connexion QUIC d'avoir plus chemin réseau. Les caractéristiques notables 
-dans le cadre de ce rapport sont : 
-- Une connexion QUIC peut avoir plusieurs chemin réseau
-- Les chemins réseau peuvent être unidirectionnel
-- les acknowledgements peuvent être envoyé sur un chemin réseau indépendament du chemin réseau de réception grâce au frames PATH_ACK qui specifient le chemin où a été reçu le paquet. 
+QUIC Multipath (QUIC-MP) @Multipath est une extension de QUIC ajoutant la possibilité pour une connexion QUIC d'avoir plus chemins réseau. Les caractéristiques notables dans le cadre de ce rapport sont : 
+- Une connexion QUIC peut avoir plusieurs chemins réseau simultanément
+- Les chemins réseau peuvent être unidirectionnels
+- les acquittements peuvent être envoyés sur un chemin réseau indépendament du chemin réseau de réception grâce aux frames PATH_ACK qui specifient le chemin par lequel a été reçu le paquet. 
 === Flexicast 
 #figure(
   image("Flexicast_basic.svg"),
   caption: "Organisation des chemins réseaux d'un flot Flexicast"
 )
 
-Flexicast (#emph("Flexi")ble Multi#emph("cast")) @Flexicast est une extension de QUIC et QUIC-MP utilisant les chemins réseau additionnel de QUIC-MP pour permettre une communication multicast. Chaque client (utilisant Flexicast) possède 2 chemins réseau :
-- un chemin unicast bidirectionnel chiffré par la clé négociée sans différence relativement au QUIC standard 
-- un chemin multicast unidirectionnel du serveur vers le client chiffré avec une clé de session (notée $K_s$) envoyée par le serveur sur le chemin unicast. 
-Les acknowledgements sont envoyés uniquement sur le chemin unicast. 
+Flexicast (#emph("Flexi")ble Multi#emph("cast")) @Flexicast est une extension de QUIC et QUIC-MP utilisant les chemins réseau additionnels de QUIC-MP pour permettre une communication multicast. Chaque client (utilisant Flexicast) possède deux chemins réseau :
+- Un chemin unicast bidirectionnel chiffré par la clé négociée , identique au protocole QUIC standard.
+- Un chemin multicast unidirectionnel du serveur vers le client, chiffré avec une clé de session (notée $K_s$) envoyée par le serveur sur le chemin unicast. 
+Les acquittements sont envoyés uniquement sur le chemin unicast. 
 Le processus standard pour rejoindre un flot Flexicast procède de la manière suivante (détaillé dans @FlexicastClientStateMachine): 
 - Le client se connecte en unicast au serveur (Il y acquiert la clé de communication unicast)
-- Le serveur propose un ou des flots Flexicast (Avec une frame "MC_ANNOUNCE" )
+- Le serveur propose un ou plusieurs flots Flexicast (Avec une frame "MC_ANNOUNCE" )
 - Le client anonce vouloir rejoindre un flot (Avec une frame "MC_STATE(join)")
 - Le serveur envoit la clé de session par l'unicast (Avec une frame "MC_KEY")
--  Le client confirme avoir rejoint le flot (avec une frame "MC_STATE")
-- Le client peut partir ou être expulsé par le serveur du flot Flexicast (par une frame "MC_STATE")
+- Le client confirme avoir rejoint le flot (avec une frame "MC_STATE")
+- Le client peut quitter le flot ou être expulsé par le serveur du (par une frame "MC_STATE")
 
 
 === Flexicast Quiche
 #figure(
   image("schéma_fcquiche_louis.png"),
-  caption: [Organisation des taches tokio d'un serveur Flexicast Quiche (directement issue de @Flexicast)]
+  caption: [Organisation des tâches Tokio d'un serveur Flexicast Quiche (directement issue de @Flexicast)]
   
 
 )
-Flexicast Quiche@FlexicastGithub  est une implémentation de Flexicast (client et serveur) en rust#box(image("rust.png",height: 0.5em, ),  baseline: 0.25em)@rustLogo se basant sur l'implémentation de QUIC Quiche de Cloudflare et la librarie Tokio@Tokio pour assurer l'exécution multitache. Tokio est centré sur l'utilisation de tâches qui communiquent par passation de message. Dans Flexicast Quiche, les catégories de taches sont réparties en : 
+Flexicast Quiche @FlexicastGithub est une implémentation de Flexicast (client et serveur) en Rust#box(image("rust.png",height: 0.5em, ),  baseline: 0.25em)@rustLogo se basant sur l'implémentation de QUIC Quiche de Cloudflare et sur la bibliothèque Tokio@Tokio pour assurer l'exécution multitâche. Tokio est centré sur l'utilisation de tâches qui communiquent par passation de message. Dans Flexicast Quiche, les catégories de taches sont réparties en : 
 - "FC_Flow" (Flexicast flow) : Gère le flux sur l'arbre multicast, communique uniquement avec contrôleur racine
 - "Controller" : Gère la liaison Unicast-Flexicast. Séparé en 2 sous-catégorie pour permettre une scalabilité horizontale en 
   - un unique contrôleur racine (côté multicast), informe les contrôleur feuille des paquets QUIC envoyés sur le flux multicast
@@ -139,9 +138,58 @@ avec $id_i$, les identifiants des clés $L_(id_i)$, E_A(B) la fonction de chiffr
 \ En notant $r$ le nombre de RP révoqués, la taille du header nécessaire est bornée par $r log(n/r)$ pour $log(n)$ clé stocké par chaque receveur @TraitorTracing. 
 ==== Différence de sous ensembles @TraitorTracing
 Cette méthode est très similaire à la précédente, l'objectif est de trouver une collection d'ensemble minimale recouvrant exactement les RP. Dans cette méthode, les ensembles considérés sont plus flexible et sont défini comme la différence de sous arbres. C'est à dire sous la forme S(i,j), le sous-arbres ayant pour racine i mais n'appartient pas au sous-arbre de racine j. Par exemple, pour @Arbre_binaire, $S(4,9)$ contient les receveurs $[1,17,9,25]$. 
-Il est possible, moyenant une création de clé décrite dans @TraitorTracing de réduire la taille du header à une borne de $2r -1$ au coût d'un stockage de $(log(n))^2/2$
-#pagebreak()
+Il est possible, moyenant une création de clé décrite dans @TraitorTracing de réduire la taille du header à une borne de $2r -1$ au coût d'un stockage de $(log(n))^2/2$ sur chaque receveur. 
+== Hiérarchie Logique de Clé (LKH) @cannetiMulticast
+Cette méthode est toujours basée sur un arbre binaire complet où les RP en sont les feuilles. Cependant, ici l'arbre (et donc les clés) est dynamique, il ne contient strictement que les RP et la clé de session est la clé de session associée. Elle ne nécessite pas d'en-tête particulier. Cependant, les receveurs doivent donc changer de clé à chaque ajout ou retrait d'un RP. Si une clé est perdue, le receveur n'est donc plus capable de déchiffrer correctement toute la suite du contenu. Dans le cas de Flexicast, ce n'est pas un problème car QUIC assure la livraison dans l'ordre de tous les paquets. Le principal avantage de cette méthode est qu'elle est simple à implémenter et _théoriquement_ simple à intégrer à QUIC. En effet, il n'y a qu'une seule clé pour le contenu est sans header supplémentaire, il suffit de changer le secret utilisé dans la suite SSL pour suivre le flux. (En pratique, il y a quelques problèmes de synchronisation, rotation,...)
 
+=== Modification de l'arbre
+#figure(
+grid(
+  columns: 2,
+  figure(
+  
+  image("Rapporttree_A05.svg"),
+  caption: "Ajout de l'utilisateur 5, les clés mises à jours sont affichées en rouge"
+),
+figure(
+  
+  image("Rapporttree_R01.svg"),
+  caption: "Retrait de l'utilisateur 1, les clés mises à jours sont affichées en rouge"
+)
+) 
+) <exemple_lkh>
+
+Lors de l'ajout ou de la révoquation d'un receveur, l'arbre est modifié pour stocker ou oublier le receveur concerné puis le chemin du noeud du receveur jusqu'à la racine est parcouru, en changeant la clé de chaque noeud traversé. Ces clés sont ensuite transmise aux deux enfants en chiffrant la clé avec la clé des noeuds enfants.
+Pour l'exemple de la @exemple_lkh, les messages envoyés sont : $ E_K_1(K_9), E_K_8(K_9),E_K_9(K_5),E_K_4(K_5), E_K_5(K_3),E_K_7(K_3) $ Ainsi chaque utilisateur encore dans l'arbre a connaissance des nouvelles clés entre lui et la racine. 
+
+
+Les mises à jours nécessite donc $2log(n)$ messages mais les messages portant du contenu sont indépendant du nombre d'utilisateur révoqués 
+=== Optimisations possibles
+==== Arbre à fonction à sens-unique 
+#figure(
+  image("OFT.gif",height: 10em),
+  caption: [Exemple d'arbre à fonction à sens-unique issue de @OFT_LKHP]
+) <OFT>
+Il est possible de réduire le nombre de message pour les changements en dérivant une partie des clés directement sur le receveurs.  Pour cela, chaque noeud stocke 2 éléments : un secret et la clé. La clé est issue, par une fonction de dérivation, du secret. Le secret est soit défini si le noeud est feuille soit calculé grâce aux 2 noeuds fils.
+Le secret d'un noeud non-feuille est calculé en utilisant le ou exclusif des secret "obscurcis" (hashés) des 2 fils. 
+Il suffit dès lors d'envoyer uniquement $log(n)$ clés lors d'un changement (le chemin direct depuis le changement vers la racine). Le stockage nécessaire pour chaque receveurs est donc de $2log(n)$.  
+
+Cette méthode n'est, cependant, pas convenable car elle est vulnérable à une attaque par collusion @Attack_OFT. En effet, si 2 receveurs coopèrent ils peuvent avoir accès à la clé de session d'une période pendant laquelle aucun des deux n'est dans l'arbre. Par exemple sur la @OFT, en 3 temps :
+- Un utilisateur rejoint l'arbre et est placé sous $x_2$, il connait donc $f(x_3)$. 
+- Cet utilisateur part et $x_2$ est remplacé par $x_2'$, la clé de session est donc $g(f(x_2') xor f(x_3))$
+- Un utilisateur rejoint l'arbre et est placé sous $x_3$, il connait donc $f(x_2')$
+Ainsi si ces 2 utilisateurs coopèrent, ils connaissent $f(x_2') xor f(x_3)$ donc la clé de session intermédiaire.
+Il existe des propositions résistantes à la collusion mais elle paraissait trop complexe à implémenter en première approche.
+==== LKH+
+L'utilisation d'un arbre binaire créé des cas où le nombre de clé à diffusion est pire que l'unicast. Notament lorsqu'il y a peu de d'utilisateurs. D'autre part, un attaquant désireux de consommer excessivement du temps de calcul pourrait continuellement rejoindre et quitter le flux, engendrant à chaque mouvement une nouvelle série de message de mise à jours, ce qui pourrait, potentiellement, occuper la totalité du canal bloquant ainsi la diffusion du contenu. Pour cela il est possible d'ajouter les RP par groupe @Attack_OFT. Pour cela, il suffit d'ajouter virtuellement des RP directement sous la racine en ne leurs transmettant que la clé de session jusqu'à atteindre une quantité minimale d'utilisateur puis les ajouter dans l'arbre.
+=== Considération de sécurité
+
+= Implémentation
+== Python
+== Rust
+= Intégration 
+
+#pagebreak()
 = Annexe
 #figure(
   image("ClientSideStateMachine.svg"), 

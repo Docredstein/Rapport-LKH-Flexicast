@@ -154,4 +154,38 @@ TraitorTracing:
   howpublished: "Cryptology ePrint Archive, Paper 2001/059"
   year: 2001
   url: "https://eprint.iacr.org/2001/059"
+OFT_LKHP:
+  type: article
+  title: Key Establishment in Large Dynamic Groups Using One-Way Function Trees
+  authors:
+    - family: Sherman
+      given: Alan T.
+    - family: McGrew
+      given: David A.
+  journal: IEEE Transactions on Software Engineering
+  volume: 29
+  issue: 5
+  page-range: 444-458
+  date: 2003
+  doi: 10.1109/TSE.2003.1199073
+Attack_OFT:
+  type: article
+  title: Towards Collusion-Attack-Resilient Group Key Management Using One-Way Function Tree
+  authors:
+    - family: Sun
+      given: Yanming
+    - family: Chen
+      given: Min
+    - family: Bacchus
+      given: Abel
+    - family: Lin
+      given: Xiaodong
+  journal: Computer Networks
+  volume: 104
+  page-range: 16-26
+  date: 2016
+  doi: 10.1016/j.comnet.2016.04.014
+  serial-number:
+    issn: 1389-1286
+  url: https://www.sciencedirect.com/science/article/pii/S1389128616301128
 
