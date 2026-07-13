@@ -78,6 +78,7 @@ cannetiMulticast:
     volume: 2
   page-range: "708–716"
   doi: "10.1109/INFCOM.1999.751457"
+  url: https://ieeexplore.ieee.org/document/751457
 secDef:
   type: report
   title: "Internet Security Glossary, Version 2"
@@ -120,6 +121,7 @@ LSD:
     location: Berlin, Heidelberg
   page-range: 47-60
   doi: "10.1007/3-540-45708-9_4"
+  url: https://link.springer.com/chapter/10.1007/3-540-45708-9_4
   serial-number:
     isbn: "978-3-540-45708-4"
 BroadcastEncryption:
@@ -143,6 +145,7 @@ BroadcastEncryption:
   serial-number:
     isbn: "3540577661"
   doi: "10.1007/3-540-48071-4_38"
+  url: https://link.springer.com/chapter/10.1007/3-540-48329-2_40
 TraitorTracing:
   type: Article
   id: cryptoeprint:2001/059
@@ -168,6 +171,7 @@ OFT_LKHP:
   page-range: 444-458
   date: 2003
   doi: 10.1109/TSE.2003.1199073
+  url: https://ieeexplore.ieee.org/document/1199073
 Attack_OFT:
   type: article
   title: Towards Collusion-Attack-Resilient Group Key Management Using One-Way Function Tree
@@ -188,4 +192,30 @@ Attack_OFT:
   serial-number:
     issn: 1389-1286
   url: https://www.sciencedirect.com/science/article/pii/S1389128616301128
-
+CorruptionEquivalence:
+  type: chapter
+  title: "Corrupting One vs. Corrupting Many: The Case of Broadcast and Multicast Encryption"
+  authors:
+    - family: Micciancio
+      given: Daniele
+    - family: Panjwani
+      given: Saurabh
+  editors:
+    - family: Bugliesi
+      given: Michele
+    - family: Preneel
+      given: Bart
+    - family: Sassone
+      given: Vladimiro
+    - family: Wegener
+      given: Ingo
+  parent:
+    type: proceedings
+    title: "Automata, Languages and Programming"
+    publisher: Springer Berlin Heidelberg
+    location: Berlin, Heidelberg
+  date: 2006
+  page-range: "70--82"
+  serial-number:
+    isbn: "978-3-540-35908-1"
+  url: https://cseweb.ucsd.edu/~spanjwan/Papers/ICALP2006.pdf
