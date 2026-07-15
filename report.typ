@@ -22,7 +22,13 @@
 // Set document metadata
 #set document(title: title, author: author, date: datetime.today())
 #show: template.apply.with(despair-mode: despair-mode, first-line-indent-all: first-line-indent-all)
-
+#let todo() = [
+  #align(
+    center,
+  text(size: 72pt, stroke: red,fill:orange, "TODO")
+  )
+  
+]
 // Cover page
 #template.cover(
   title,
@@ -39,12 +45,12 @@
 #heading(level: 1, numbering: none, outlined: false)[Remerciements]
 Je tiens à remercier Olivier BONAVENTURE, qui a été mon tuteur pendant ce stage, pour sa bonne humeur, sa sympathie et
 
-Je souhaite d'autre part remercier Louis NAVARE pour son
+Je souhaite d'autre part remercier Louis NAVARE pour son#todo()
 #pagebreak()
 
 // Executive summary
 #heading(level: 1, numbering: none, outlined: false)[Abstract]
-#lorem(300)
+#todo()
 #pagebreak()
 
 // Table of contents
@@ -64,33 +70,33 @@ Cependant, à l'heure de la rédaction de ce rapport, la spécification Flexicas
 
 == Contexte
 === Confidentialité persistante
-La confidentialité persistante est définie dans @secDef comme la résistance à la découverte d'une clé privée sans compromettre les paquets précédents. 
+La confidentialité persistante est définie dans @secDef comme la résistance à la découverte d'une clé privée sans compromettre les paquets précédents.
 === QUIC
-QUIC @RFCQuic est un protocole de couche 4 modulaire, léger, fiable et chiffré, reposant sur UDP. Les caractéristiques remarquables de QUIC pour ce rapport sont : 
+QUIC @RFCQuic est un protocole de couche 4 modulaire, léger, fiable et chiffré, reposant sur UDP. Les caractéristiques remarquables de QUIC pour ce rapport sont :
 - Un datagramme UDP peut contenir plusieurs paquets QUIC.
-- Un paquet QUIC peut contenir plusieurs _frames_ QUIC et est chiffré et authentifié par une clé symétrique. 
-- Une frame QUIC est l'unité de donnée contenant les données applicatives et les données de contrôles. 
+- Un paquet QUIC peut contenir plusieurs _frames_ QUIC et est chiffré et authentifié par une clé symétrique.
+- Une frame QUIC est l'unité de donnée contenant les données applicatives et les données de contrôle.
 
-=== QUIC Multipath 
-QUIC Multipath (QUIC-MP) @Multipath est une extension de QUIC ajoutant la possibilité pour une connexion QUIC d'avoir plus chemins réseau. Les caractéristiques notables dans le cadre de ce rapport sont : 
+=== QUIC Multipath
+QUIC Multipath (QUIC-MP) @Multipath est une extension de QUIC ajoutant la possibilité pour une connexion QUIC d'avoir plusieurs chemins réseau. Les caractéristiques notables dans le cadre de ce rapport sont :
 - Une connexion QUIC peut avoir plusieurs chemins réseau simultanément
 - Les chemins réseau peuvent être unidirectionnels
-- les acquittements peuvent être envoyés sur un chemin réseau indépendament du chemin réseau de réception grâce aux frames PATH_ACK qui specifient le chemin par lequel a été reçu le paquet. 
-=== Flexicast 
+- les acquittements peuvent être envoyés sur un chemin réseau indépendament du chemin réseau de réception grâce aux frames PATH_ACK qui specifient le chemin par lequel a été reçu le paquet.
+=== Flexicast
 #figure(
   image("Flexicast_basic.svg"),
-  caption: "Organisation des chemins réseaux d'un flot Flexicast"
+  caption: "Organisation des chemins réseau d'un flot Flexicast",
 )
 
 Flexicast (#emph("Flexi")ble Multi#emph("cast")) @Flexicast est une extension de QUIC et QUIC-MP utilisant les chemins réseau additionnels de QUIC-MP pour permettre une communication multicast. Chaque client (utilisant Flexicast) possède deux chemins réseau :
 - Un chemin unicast bidirectionnel chiffré par la clé négociée , identique au protocole QUIC standard.
-- Un chemin multicast unidirectionnel du serveur vers le client, chiffré avec une clé de session (notée $K_s$) envoyée par le serveur sur le chemin unicast. 
-Les acquittements sont envoyés uniquement sur le chemin unicast. 
-Le processus standard pour rejoindre un flot Flexicast procède de la manière suivante (détaillé dans @FlexicastClientStateMachine): 
+- Un chemin multicast unidirectionnel du serveur vers le client, chiffré avec une clé de session (notée $K_s$) envoyée par le serveur sur le chemin unicast.
+Les acquittements sont envoyés uniquement sur le chemin unicast.
+Le processus standard pour rejoindre un flot Flexicast se déroule de la manière suivante (détaillé dans @FlexicastClientStateMachine):
 - Le client se connecte en unicast au serveur (Il y acquiert la clé de communication unicast)
 - Le serveur propose un ou plusieurs flots Flexicast (Avec une frame "MC_ANNOUNCE" )
 - Le client anonce vouloir rejoindre un flot (Avec une frame "MC_STATE(join)")
-- Le serveur envoit la clé de session par l'unicast (Avec une frame "MC_KEY")
+- Le serveur envoie la clé de session par l'unicast (Avec une frame "MC_KEY")
 - Le client confirme avoir rejoint le flot (avec une frame "MC_STATE")
 - Le client peut quitter le flot ou être expulsé par le serveur du (par une frame "MC_STATE")
 
@@ -98,87 +104,83 @@ Le processus standard pour rejoindre un flot Flexicast procède de la manière s
 === Flexicast Quiche
 #figure(
   image("schéma_fcquiche_louis.png"),
-  caption: [Organisation des tâches Tokio d'un serveur Flexicast Quiche (directement issue de @Flexicast)]
-  
-
+  caption: [Organisation des tâches Tokio d'un serveur Flexicast Quiche (directement issue de @Flexicast)],
 )
-Flexicast Quiche @FlexicastGithub est une implémentation de Flexicast (client et serveur) en Rust#box(image("rust.png",height: 0.5em, ),  baseline: 0.25em)@rustLogo se basant sur l'implémentation de QUIC Quiche de Cloudflare et sur la bibliothèque Tokio@Tokio pour assurer l'exécution multitâche. Tokio est centré sur l'utilisation de tâches qui communiquent par passage de messages. Dans Flexicast Quiche, les catégories de taches sont réparties en : 
+Flexicast Quiche @FlexicastGithub est une implémentation de Flexicast (client et serveur) en Rust#box(image("rust.png", height: 0.5em), baseline: 0.25em)@rustLogo se basant sur l'implémentation de QUIC Quiche de Cloudflare et sur la bibliothèque Tokio@Tokio pour assurer l'exécution multitâche. Tokio est centré sur l'utilisation de tâches qui communiquent par passage de messages. Dans Flexicast Quiche, les catégories de taches sont réparties en :
 - "FC_Flow" (Flexicast flow) : Gère le flux sur l'arbre multicast et communique uniquement avec le contrôleur racine
-- "Controller" : Gère la liaison Unicast-Flexicast.Il est séparé en 2 sous-catégories pour permettre une scalabilité horizontale en 
+- "Controller" : Gère la liaison Unicast-Flexicast.Il est séparé en 2 sous-catégories pour permettre une scalabilité horizontale en
   - Un unique contrôleur racine (côté multicast), qui informe les contrôleurs feuilles des paquets QUIC envoyés sur le flux multicast.
   - Un ensemble de contrôlleurs feuilles (côté unicast), aggrègent les acquittements des chemins unicasts.
-- "UC" (Unicast) : Un ensemble de controlleur, chacun gère une unique connection QUIC unicast avec un client et peut communiquer avec un unique contrôleur feuille.  
-La synchronisation entre les chemins unicasts et le flot Flexicast est réalisée par un message envoyé périodiquement depuis le "FC_Flow" informant les contrôleur du dernier numéro de paquet envoyé. 
-Lorsqu'un client choisit de rejoindre le flot Flexicast, un message annoncant l'arrivée d'un nouveau client est propagé depuis les connexions UC vers les controleur feuille. 
+- "UC" (Unicast) : Un ensemble de controleur, chacun gère une unique connection QUIC unicast avec un client et peut communiquer avec un unique contrôleur feuille.
+La synchronisation entre les chemins unicasts et le flot Flexicast est réalisée par un message envoyé périodiquement depuis le "FC_Flow" informant les contrôleur du dernier numéro de paquet envoyé.
+Lorsqu'un client choisit de rejoindre le flot Flexicast, un message annoncant l'arrivée d'un nouveau client est propagé depuis les connexions UC vers les controleur feuille.
 #pagebreak()
 = État de l'art
-Le problème étudié est appellé le chiffrement de diffusion (_Broadcast Encryption_)@BroadcastEncryption. Une source souhaite diffuser une contenu à un ensemble de récepteurs dynamiques. Il est possible que d'autre récepteurs interceptent tous les messages sur le canal, mais ils ne doivent pas être en mesure de déchiffrer le contenu. Pour la suite, le nombre de récepteurs privilégié (RP) sera noté $n$ et l'ensembles des récepteurs sera noté $R$. 
+Le problème étudié est appellé le chiffrement de diffusion (_Broadcast Encryption_)@BroadcastEncryption. Une source souhaite diffuser une contenu à un ensemble de récepteurs dynamiques. Il est possible que d'autre récepteurs interceptent tous les messages sur le canal, mais ils ne doivent pas être en mesure de déchiffrer le contenu. Pour la suite, le nombre de récepteurs privilégié (RP) sera noté $n$ et l'ensembles des récepteurs sera noté $R$.
 == Solutions "naïves"
 === Simili-unicast
-La première solution @BroadcastEncryption consiste à associer une clé par RP et à dupliquer le contenu $n$ fois pour le chiffrer avec chaque clé. Cette solution correspond à celle qui est utilisée en l'absence de multicast. La quantité de données à envoyer est linéaire relativement à $n$ et nécessite $n$ chiffrements. Cela entraîne en une consommation processeur suffisante pour saturer le serveur dès $n=400$ dans la baseline pour le test de Flexicast @Flexicast.
+La première solution @BroadcastEncryption consiste à associer une clé par RP et à dupliquer le contenu $n$ fois pour le chiffrer avec chaque clé. Cette solution correspond à celle qui est utilisée en l'absence de multicast. La quantité de données à envoyer est linéaire relativement à $n$ et nécessite $n$ chiffrements. Cela entraîne une consommation processeur suffisante pour saturer le serveur dès $n=400$ dans la baseline pour le test de Flexicast @Flexicast.
 === Rotation unicast
 Une première optimisation possible est d'introduire une clé de session. C'est à dire une clé unique pour chiffrer le contenu à diffuser. En cas de changement des RP, une nouvelle clé est générée et est envoyée sur chaque lien unicast des RP. Cette méthode nécessite donc $n$ chiffrement pour la rotation et $1$ chiffrement pour le contenu.
 Cette solution n'est pas suffisante pour Flexicast car il est théoriquement possible d'y avoir plusieurs milliers de RP.
 === Solution sans message @BroadcastEncryption
-Une solution pour limiter le nombre de message est de considérer qu'il est uniquement nécessaire d'assurer le chiffrement de diffusion pour un nombre de receveur ennemi (donc non privilégié) <=k⋅ C'est ainsi qu'est défini la k-résilience. Une méthode (théoriquement) simple consiste à créer un ensemble de clé et de les distribuer en considérant tout les sous-ensembles de R de cardinal<=k et de donner une clé pour chaque complémentaires de ces ensembles. De cette manière il est possible de construire une clé de session k-résiliente. Cependant, le coût mémoire de cette solution est exponentielle en k. De plus, il est _théoriquement_ possible pour un flot Flexicast d'avoir une quantité infinie de RP et donc aussi de récepteur ennemi. Ainsi, la k-résilience n'est pas suffisante 
+Une solution pour limiter le nombre de messages est de considérer qu'il est uniquement nécessaire d'assurer le chiffrement de diffusion pour un nombre de receveur ennemi (donc non privilégié) <=k⋅ C'est ainsi qu'est défini la k-résilience. Une méthode (théoriquement) simple consiste à créer un ensemble de clé et de les distribuer en considérant tout les sous-ensembles de R de cardinal<=k et de donner une clé pour chaque complémentaires de ces ensembles. De cette manière il est possible de construire une clé de session k-résiliente. Cependant, le coût mémoire de cette solution est exponentielle en k. De plus, il est _théoriquement_ possible pour un flot Flexicast d'avoir une quantité infinie de RP et donc aussi de récepteurs ennemis. Ainsi, la k-résilience n'est pas suffisante
 
 == Solution à arbres binaires
 #figure(
   image("tree_A32.svg"),
-  caption: "Arbre binaire, les utilisateurs sont les nombres rouges et les id de clés les numéros sous les noeuds "
+  caption: "Arbre binaire, les utilisateurs sont les nombres rouges et les id de clés les numéros sous les noeuds ",
 )<Arbre_binaire>
-Dans l'optique de réduire le nombre de message, il est possible d'enregistrer les utilisateurs dans un arbre binaire pour lequel chaque noeud est associé à une clé. De cette manière, il est possible d'envoyer un message en multicast directement à un sous ensemble des utilisateurs enregistrés et ce pour un coût mémoire relativement limité pour le receveur. 
+Dans l'optique de réduire le nombre de messages, il est possible d'enregistrer les utilisateurs dans un arbre binaire pour lequel chaque noeud est associé à une clé. De cette manière, il est possible d'envoyer un message en multicast directement à un sous ensemble des utilisateurs enregistrés et ce pour un coût mémoire relativement limité pour le receveur.
 
 
 === Receveurs sans état
 La littérature propose des méthodes @TraitorTracing@LSD pour permettre d'assurer le chiffrement de la diffusion sans changer l'état des RP. Ces méthodes fonctionnent sur la création d'arbres binaires et la séléction de sous-arbres recouvrants. Ces méthodes permettent aussi le traçage de traitre qui consiste en l'identification d'un potentiel "traitre" qui rediffuserait le contenu. Ces méthodes n'utilisent pas de clé de session mais un ensemble de clé à utiliser comme en simili-unicast.
 
 ==== Sous-arbre complet @TraitorTracing
-Un arbre binaire de clé est généré et, pour chaque utilisateur révoqué, les noeuds frêre du chemin de l'utiisateur jusqu'à la racines sont notés. (par exemple, dans @Arbre_binaire, si l'utilisateur 1 est révoqué, les noeuds [33,17,9,5,3] sont notés). En répétant cette opération pour chaque utilisateur révoqué, une collection de sous-arbres recouvrants les RP est créé. Ensuite le message est chiffré avec une clé de session K qui est chiffrée une fois avec chaque clé associée à une racine des sous-arbres de la collection. Le message final est 
+Un arbre binaire de clé est généré et, pour chaque utilisateur révoqué, les noeuds frêre du chemin de l'utiisateur jusqu'à la racines sont notés. (par exemple, dans @Arbre_binaire, si l'utilisateur 1 est révoqué, les noeuds [33,17,9,5,3] sont notés). En répétant cette opération pour chaque utilisateur révoqué, une collection de sous-arbres recouvrants les RP est créé. Ensuite le message est chiffré avec une clé de session K qui est chiffrée une fois avec chaque clé associée à une racine des sous-arbres de la collection. Le message final est
 
-$ [id_1,...,id_l,E_(L_(id_1))(K),...E_(L_(id_l))(K),E_K (M)] $ 
+$ [id_1,...,id_l,E_(L_(id_1))(K),...E_(L_(id_l))(K),E_K (M)] $
 avec $id_i$, les identifiants des clés $L_(id_i)$, E_A(B) la fonction de chiffrement de B par la clé A et M le contenu à diffuser.
-\ En notant $r$ le nombre de RP révoqués, la taille du header nécessaire est bornée par $r log(n/r)$ pour $log(n)$ clé stocké par chaque receveur @TraitorTracing. 
+\ En notant $r$ le nombre de RP révoqués, la taille du header nécessaire est bornée par $r log(n/r)$ pour $log(n)$ clé stocké par chaque receveur @TraitorTracing.
 ==== Différence de sous ensembles @TraitorTracing
-Cette méthode est très similaire à la précédente, l'objectif est de trouver une collection d'ensemble minimale recouvrant exactement les RP. Dans cette méthode, les ensembles considérés sont plus flexible et sont défini comme la différence de sous arbres. C'est à dire sous la forme S(i,j), le sous-arbres ayant pour racine i mais n'appartient pas au sous-arbre de racine j. Par exemple, pour @Arbre_binaire, $S(4,9)$ contient les receveurs $[1,17,9,25]$. 
-Il est possible, moyenant une création de clé décrite dans @TraitorTracing de réduire la taille du header à une borne de $2r -1$ au coût d'un stockage de $(log(n))^2/2$ sur chaque receveur. 
+Cette méthode est très similaire à la précédente, l'objectif est de trouver une collection d'ensemble minimale recouvrant exactement les RP. Dans cette méthode, les ensembles considérés sont plus flexible et sont défini comme la différence de sous arbres. C'est à dire sous la forme S(i,j), le sous-arbres ayant pour racine i mais n'appartient pas au sous-arbre de racine j. Par exemple, pour @Arbre_binaire, $S(4,9)$ contient les receveurs $[1,17,9,25]$.
+Il est possible, moyenant une création de clé décrite dans @TraitorTracing de réduire la taille du header à une borne de $2r -1$ au coût d'un stockage de $(log(n))^2/2$ sur chaque receveur.
 == Hiérarchie Logique de Clé (LKH) @cannetiMulticast
 Cette méthode est toujours basée sur un arbre binaire complet où les RP en sont les feuilles. Cependant, ici l'arbre (et donc les clés) est dynamique, il ne contient strictement que les RP et la clé de session est la clé de session associée. Elle ne nécessite pas d'en-tête particulier. Cependant, les receveurs doivent donc changer de clé à chaque ajout ou retrait d'un RP. Si une clé est perdue, le receveur n'est donc plus capable de déchiffrer correctement toute la suite du contenu. Dans le cas de Flexicast, ce n'est pas un problème car QUIC assure la livraison dans l'ordre de tous les paquets. Le principal avantage de cette méthode est qu'elle est simple à implémenter et _théoriquement_ simple à intégrer à QUIC. En effet, il n'y a qu'une seule clé pour le contenu est sans header supplémentaire, il suffit de changer le secret utilisé dans la suite SSL pour suivre le flux. (En pratique, il y a quelques problèmes de synchronisation, rotation,...)
 
 === Modification de l'arbre
 #figure(
-grid(
-  columns: 2,
-  figure(
-  
-  image("Rapporttree_A05.svg"),
-  caption: "Ajout de l'utilisateur 5, les clés mises à jours sont affichées en rouge"
-),
-figure(
-  
-  image("Rapporttree_R01.svg"),
-  caption: "Retrait de l'utilisateur 1, les clés mises à jours sont affichées en rouge"
-)
-) 
+  grid(
+    columns: 2,
+    figure(
+      image("Rapporttree_A05.svg"),
+      caption: "Ajout de l'utilisateur 5, les clés mises à jours sont affichées en rouge",
+    ),
+    figure(
+      image("Rapporttree_R01.svg"),
+      caption: "Retrait de l'utilisateur 1, les clés mises à jours sont affichées en rouge",
+    ),
+  ),
 ) <exemple_lkh>
 
 Lors de l'ajout ou de la révoquation d'un receveur, l'arbre est modifié pour stocker ou oublier le receveur concerné puis le chemin du noeud du receveur jusqu'à la racine est parcouru, en changeant la clé de chaque noeud traversé. Ces clés sont ensuite transmise aux deux enfants en chiffrant la clé avec la clé des noeuds enfants.
-Pour l'exemple de la @exemple_lkh, les messages envoyés sont : $ E_K_1(K_9), E_K_8(K_9),E_K_9(K_5),E_K_4(K_5), E_K_5(K_3),E_K_7(K_3) $ Ainsi chaque utilisateur encore dans l'arbre a connaissance des nouvelles clés entre lui et la racine. 
+Pour l'exemple de la @exemple_lkh, les messages envoyés sont : $ E_K_1(K_9), E_K_8(K_9),E_K_9(K_5),E_K_4(K_5), E_K_5(K_3),E_K_7(K_3) $ Ainsi chaque utilisateur encore dans l'arbre a connaissance des nouvelles clés entre lui et la racine.
 
 
-Les mises à jours nécessite donc $2log(n)$ messages mais les messages portant du contenu sont indépendant du nombre d'utilisateur révoqués 
+Les mises à jours nécessite donc $2log(n)$ messages mais les messages portant du contenu sont indépendant du nombre d'utilisateur révoqués
 === Optimisations possibles
-==== Arbre à fonction à sens-unique 
+==== Arbre à fonction à sens-unique
 #figure(
-  image("OFT.gif",height: 10em),
-  caption: [Exemple d'arbre à fonction à sens-unique issue de @OFT_LKHP]
+  image("OFT.gif", height: 10em),
+  caption: [Exemple d'arbre à fonction à sens-unique issue de @OFT_LKHP],
 ) <OFT>
-Il est possible de réduire le nombre de message pour les changements en dérivant une partie des clés directement sur le receveurs.  Pour cela, chaque noeud stocke 2 éléments : un secret et la clé. La clé est issue, par une fonction de dérivation, du secret. Le secret est soit défini si le noeud est feuille soit calculé grâce aux 2 noeuds fils.
-Le secret d'un noeud non-feuille est calculé en utilisant le ou exclusif des secret "obscurcis" (hashés) des 2 fils. 
-Il suffit dès lors d'envoyer uniquement $log(n)$ clés lors d'un changement (le chemin direct depuis le changement vers la racine). Le stockage nécessaire pour chaque receveurs est donc de $2log(n)$.  
+Il est possible de réduire le nombre de messages pour les changements en dérivant une partie des clés directement sur le receveurs.  Pour cela, chaque noeud stocke 2 éléments : un secret et la clé. La clé est issue, par une fonction de dérivation, du secret. Le secret est soit défini si le noeud est feuille soit calculé grâce aux 2 noeuds fils.
+Le secret d'un noeud non-feuille est calculé en utilisant le ou exclusif des secret "obscurcis" (hashés) des 2 fils.
+Il suffit dès lors d'envoyer uniquement $log(n)$ clés lors d'un changement (le chemin direct depuis le changement vers la racine). Le stockage nécessaire pour chaque receveurs est donc de $2log(n)$.
 
 Cette méthode n'est, cependant, pas convenable car elle est vulnérable à une attaque par collusion @Attack_OFT. En effet, si 2 receveurs coopèrent ils peuvent avoir accès à la clé de session d'une période pendant laquelle aucun des deux n'est dans l'arbre. Par exemple sur la @OFT, en 3 temps :
-- Un utilisateur rejoint l'arbre et est placé sous $x_2$, il connait donc $f(x_3)$. 
+- Un utilisateur rejoint l'arbre et est placé sous $x_2$, il connait donc $f(x_3)$.
 - Cet utilisateur part et $x_2$ est remplacé par $x_2'$, la clé de session est donc $g(f(x_2') xor f(x_3))$
 - Un utilisateur rejoint l'arbre et est placé sous $x_3$, il connait donc $f(x_2')$
 Ainsi si ces 2 utilisateurs coopèrent, ils connaissent $f(x_2') xor f(x_3)$ donc la clé de session intermédiaire.
@@ -186,18 +188,128 @@ Il existe des propositions résistantes à la collusion mais elle paraissait tro
 ==== LKH+
 L'utilisation d'un arbre binaire créé des cas où le nombre de clé à diffusion est pire que l'unicast. Notament lorsqu'il y a peu de d'utilisateurs. D'autre part, un attaquant désireux de consommer excessivement du temps de calcul pourrait continuellement rejoindre et quitter le flux, engendrant à chaque mouvement une nouvelle série de message de mise à jours, ce qui pourrait, potentiellement, occuper la totalité du canal bloquant ainsi la diffusion du contenu. Pour cela il est possible d'ajouter les RP par groupe @Attack_OFT. Pour cela, il suffit d'ajouter virtuellement des RP directement sous la racine en ne leurs transmettant que la clé de session jusqu'à atteindre une quantité minimale d'utilisateur puis les ajouter dans l'arbre.
 === Considération de sécurité
-Le chiffrement d'une nouvelle clé avec une ancienne clé créé une chaine qui peut être représentée par un graphe. Un protocole de chiffrement de diffusion où ces chaines ont une longueur maximale de 1 admet une équivalence entre la résistance à la corruption d'un unique utilisateur et la résistance à la collusion@CorruptionEquivalence.  Pour les protocoles précédents, lesp protocoles sans-état sont donc résistant car ils ne chiffrent la clé de session qu'avec les clés des sous-ensembles. D'autre part, pour LKH il n'y a pas l'équivalence car, selon l'implémentation, la nouvelle clé de session peut être chiffrée avec l'ancienne, et ce plus d'une fois. Pour résoudre ce problème, il suffit de dériver 2 clés, une clé de chiffrement de contenu et une clé de chiffrement de clé @CorruptionEquivalence. 
+Le chiffrement d'une nouvelle clé avec une ancienne clé créé une chaine qui peut être représentée par un graphe. Un protocole de chiffrement de diffusion où ces chaines ont une longueur maximale de 1 admet une équivalence entre la résistance à la corruption d'un unique utilisateur et la résistance à la collusion@CorruptionEquivalence.  Pour les protocoles précédents, lesp protocoles sans-état sont donc résistant car ils ne chiffrent la clé de session qu'avec les clés des sous-ensembles. D'autre part, pour LKH il n'y a pas l'équivalence car, selon l'implémentation, la nouvelle clé de session peut être chiffrée avec l'ancienne, et ce plus d'une fois. Pour résoudre ce problème, il suffit de dériver 2 clés, une clé de chiffrement de contenu et une clé de chiffrement de clé @CorruptionEquivalence.
 
-= Implémentation
+= Implémentations
 == Python
+Dans un premier temps, n'ayant jamais écrit de Rust, un module LKH python a été écrit. L'idée était de commencer à débuguer sur un language qui m'étais connu et qui est rapide à écrire. L'objectif de ce module n'est pas d'implémenter Flexicast en python mais strictement la distribution de clé.
+
+=== Interface
+Pour modéliser les deux interfaces disponibles dans Flexicast (multicast et unicasts) une approche fonctionnelle a été utilisée. Pour cela, un utilisateur est représenté par la classe : \
+#figure(
+  ```python class User:
+  def __init__(self, userID: str, send: Callable[[bytes], None]) -> None:
+      self.userID = userID
+      self.send = send ```,
+  caption: "Interface pour un récepteur",
+)
+`send` représente ici une fonction qui permet de d'envoyer des bytes en unicast vers cet utilisateur
+`userID` est ici une chaine de caractères mais il suffit d'une méthode hashable permettant d'identifier uniquement chaque utilisateurs.
+
+L'arbre est défini de la manière suivante :
+#figure(
+  ```python class LKH:
+  def __init__(self, sendGroup: Callable[[bytes], None], debug=False) -> None:
+    self.depth: dict[int, set[int]] = {}  # Association Couche  -> keyId
+    self.nodes: dict[int, Node] = {}      # Association Keyid   -> Node
+    self.users: dict[str, Node] = {}      # Association Userid  -> Node
+    ...```,
+  caption: "Interface pour LKH",
+)
+
+Ainsi la canal multicast appartient à l'arbre et est modélisé par un fonction permettant de transmettre des bytes à tous les récepteurs. La structure de LKH+ peut donc être implémentée relativement facilement en adjoignant un ensemble d'utilisateurs hors de l'arbre à LKH:
+#figure(
+  ```python
+  class LKHPlus(LKH) :
+      def __init__(self, sendGroup: Callable[[bytes], None], debug=False, allowableUnorderedUserCount:int=256) -> None:
+          super().__init__(sendGroup, debug)
+          self.unorderedUsers:set[User] = set()
+          self.allowableUnorderedUserCount = allowableUnorderedUserCount
+  ```,
+  caption: "Extension de LKH en LKH+",
+)
+
+
+L'arbre est ensuite défini par une classe récursive :
+#figure(
+  [```python
+  class Node:
+      def __init__(
+          self,
+          id: int,
+          left: Node | None = None,
+          right: Node | None = None,
+          parent: Node | None = None,
+          key: bytes = b"",
+          keyid: int = 0,
+          user: User | None = None,
+          depth: int = 0,
+      ) -> None:
+          ...```],
+  caption: "Définition d'un noeud de l'arbre",
+)
+
+
+Et pour l'ajout/retrait d'utilisateurs est réalisé simplement de la manière suivante :
+```python def addUser(self, user: User)
+def removeUser(self, user: User) ```
+
+=== Récepteur
+Un point notable pour LKH est la simplicité de mise à jours pour les clients.En effet, il n'est pas nécessaire pour le récepteur de connaitre la position des clés dans l'arbre. De cette manière, il suffit d'un dictionnaire indexant les identifiants de clés connues. Cependant, il est nécessaire d'indiquer alors explicitement si la nouvelle clé correspond à la clé de la racine. D'autre part, le paquet de rotation de clé n'a besoin d'être chiffré que sur le chemin multicast. Pour cela, le paquet de rotation en clair est conçu pour être "emballé" dans un paquet indiquant la clé utilisé.
+Le paquet en clair a donc été défini de la manière suivante :
+```python
+class KeyUpdatePacket(Packet):
+    def __init__(
+        self, newKey: bytes, newKeyid: int, isSessionKey: bool, deleteNewKey: bool):
+      ...
+
+class WrappedKeyUpdatePacket(Packet):
+  def __init__(self, aad:bytes,nonce:bytes,ciphertext:bytes):
+    ...
+```
+`aad` pour _additional authentified data_ contient l'identifiant de la clé utilisée pour chiffrer le paquet. Cette valeur est en clair mais est authentifiée au déchiffrement ce qui empêche toute modification de cette valeur par un attaquant sur le chemin.
+
+=== Ajout d'un utilisateur
+La procédure d'ajout d'un utilisateur doit limiter au maximum la profondeur maximale de l'arbre. En effet, plus l'arbre est profond plus le récepteur doit stocker de clé. Pour réaliser cette opération, il suffit de stocker un dictionnaire associant une profondeur à l'ensemble des feuilles à cette profondeur. Il suffit ensuite d'itérer sur les profondeur et retirer une feuille, la séparer en déplaçant l'utilisateur sur un des enfants et ajouter le nouvel utilisateur sur l'autre enfant. Enfin, il suffit de parcourir le chemin du nouvel utilisateur jusqu'à la racine. 
+#todo()
+
+=== Révocation d'un utilisateur
+
+#todo()
+
+
+=== Comparaisons 
+Pour évaluer l'intérêt pratique de ces organisations de clés en fonction du nombre d'utilisateurs, une simulation est réalisée : $n$ utilisateurs sont créés et commencent hors de l'arbre, à chaque étape un utilisateur est tiré équiprobablement et son état est changé (s'il était dans l'arbre il en sort et inversement) et ce pour $15n$ étapes. Il n'y a donc que des messages de contrôles.  
+#figure(
+  grid(
+    columns: 2,
+    image("ComparaisonUNIFClose.svg"),
+    image("ComparaisonUNIFLarge.svg")
+  ),
+  caption: "Comparaison des algorithmes avec une répartition équiprobable des actions"
+  
+)
+Ce résultat montre qu'il y a effectivement une réduction du nombre de chiffrement nécessaire relativement à une rotation de clé sans multicast, de l'ordre de 94%. Cependant, LKH+ semble augmenter le nombre de chiffrements nécessaires (Au minimum de 2% et au maximum de 216%). Pour autant cette simulation est réalisée dans le cas où chaque utilisateur à la même probabilité, or l'avantage théorique est quand un utilisateur reste hors de l'arbre puis le quitte. Un scénario plus avantageux pour LKH+ est testé, dans celui-ci, un utilisateur a une probabilité de 0.5 de réaliser une action et les autres utilisateurs sont répartis équiprobablement.
+ 
+#figure(
+  grid(
+    columns: 2,
+    image("ComparaisonAnnoyingClose.svg"),
+    image("ComparaisonAnnoyingLarge.svg")
+  ),
+  caption: "Comparaison des algorithmes avec une répartition d'action favorisant fortement un utilisateur"
+  
+)
+Dans le cas où il y a un utilisateur réalisant des actions nettement plus fréquement, LKH+ peut réduire le nombre de chiffrement de 33% (ici quand le nombre maximal de RP hors arbres est de 8). 
+
 == Rust
-= Intégration 
+= Intégration
 
 #pagebreak()
 = Annexe
 #figure(
-  image("ClientSideStateMachine.svg"), 
-  caption: "Machine à état du client Flexicast"
+  image("ClientSideStateMachine.svg"),
+  caption: "Machine à état du client Flexicast",
 )<FlexicastClientStateMachine>
 #pagebreak()
 
