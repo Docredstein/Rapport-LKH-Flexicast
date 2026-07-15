@@ -196,7 +196,7 @@ Dans un premier temps, n'ayant jamais écrit de Rust, un module LKH python a ét
 
 === Interface
 Pour modéliser les deux interfaces disponibles dans Flexicast (multicast et unicasts) une approche fonctionnelle a été utilisée. Pour cela, un utilisateur est représenté par la classe : \
-#figure(
+#figure (
   ```python class User:
   def __init__(self, userID: str, send: Callable[[bytes], None]) -> None:
       self.userID = userID
@@ -271,6 +271,29 @@ class WrappedKeyUpdatePacket(Packet):
 
 === Ajout d'un utilisateur
 La procédure d'ajout d'un utilisateur doit limiter au maximum la profondeur maximale de l'arbre. En effet, plus l'arbre est profond plus le récepteur doit stocker de clé. Pour réaliser cette opération, il suffit de stocker un dictionnaire associant une profondeur à l'ensemble des feuilles à cette profondeur. Il suffit ensuite d'itérer sur les profondeur et retirer une feuille, la séparer en déplaçant l'utilisateur sur un des enfants et ajouter le nouvel utilisateur sur l'autre enfant. Enfin, il suffit de parcourir le chemin du nouvel utilisateur jusqu'à la racine. 
+
+#figure(
+  grid(
+    columns:2,
+    gutter: 2mm,
+    figure(
+    image("AddClient/selection_split.svg"),
+    caption : "Selection du noeud à séparer"
+    ),
+    figure(
+    image("AddClient/insertion_d.svg"),
+    caption : "Insertion du nouveau récepteur"
+    ),
+    grid.cell( colspan: 2,
+      figure(
+    image("AddClient/rotation_clé.svg"),
+    caption : "Rotation des clés"
+    ),
+    )
+    
+
+  )
+)
 #todo()
 
 === Révocation d'un utilisateur
