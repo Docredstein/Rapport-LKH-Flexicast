@@ -25,9 +25,9 @@
 #let todo() = [
   #align(
     center,
-  text(size: 72pt, stroke: red,fill:orange, "TODO")
+    text(size: 72pt, stroke: red, fill: orange, "TODO"),
   )
-  
+
 ]
 // Cover page
 #template.cover(
@@ -197,11 +197,11 @@ Dans un premier temps, n'ayant jamais écrit de Rust, un module LKH python a ét
 === Interface
 Pour modéliser les deux interfaces disponibles dans Flexicast (multicast et unicasts) une approche fonctionnelle a été utilisée. Pour cela, un utilisateur est représenté par la classe : \
 #figure (
-  ```python class User:
-  def __init__(self, userID: str, send: Callable[[bytes], None]) -> None:
-      self.userID = userID
-      self.send = send ```,
-  caption: "Interface pour un récepteur",
+```python class User:
+def __init__(self, userID: str, send: Callable[[bytes], None]) -> None:
+    self.userID = userID
+    self.send = send ```,
+caption: "Interface pour un récepteur",
 )
 `send` représente ici une fonction qui permet de d'envoyer des bytes en unicast vers cet utilisateur
 `userID` est ici une chaine de caractères mais il suffit d'une méthode hashable permettant d'identifier uniquement chaque utilisateurs.
@@ -270,60 +270,80 @@ class WrappedKeyUpdatePacket(Packet):
 `aad` pour _additional authentified data_ contient l'identifiant de la clé utilisée pour chiffrer le paquet. Cette valeur est en clair mais est authentifiée au déchiffrement ce qui empêche toute modification de cette valeur par un attaquant sur le chemin.
 
 === Ajout d'un utilisateur
-La procédure d'ajout d'un utilisateur doit limiter au maximum la profondeur maximale de l'arbre. En effet, plus l'arbre est profond plus le récepteur doit stocker de clé. Pour réaliser cette opération, il suffit de stocker un dictionnaire associant une profondeur à l'ensemble des feuilles à cette profondeur. Il suffit ensuite d'itérer sur les profondeur et retirer une feuille, la séparer en déplaçant l'utilisateur sur un des enfants et ajouter le nouvel utilisateur sur l'autre enfant. Enfin, il suffit de parcourir le chemin du nouvel utilisateur jusqu'à la racine. 
+La procédure d'ajout d'un utilisateur doit limiter au maximum la profondeur maximale de l'arbre. En effet, plus l'arbre est profond plus le récepteur doit stocker de clé. Pour réaliser cette opération, il suffit de stocker un dictionnaire associant une profondeur à l'ensemble des feuilles à cette profondeur. Il suffit ensuite d'itérer sur ses clés pour trouver la liste non vide de profondeur minimale et de retirer un noeud de cette liste. Ce noeud est ensuite séparé en deux pour finalement changer les clés en parcourant le chemin depuis le nouveau récepteur jusqu'à la racine. Ici, le dictionnaire des profondeur peut explicitement être mis à jours car on ne peut séparer que des feuilles.
+En notant `kid{n}` les identifiants de clé et `k{n}` les clés, l'ajout d'un utilisateur suit donc ces 3 étapes :
 
 #figure(
   grid(
-    columns:2,
-    gutter: 2mm,
-    figure(
-    image("AddClient/selection_split.svg"),
-    caption : "Selection du noeud à séparer"
-    ),
-    figure(
-    image("AddClient/insertion_d.svg"),
-    caption : "Insertion du nouveau récepteur"
-    ),
-    grid.cell( colspan: 2,
-      figure(
-    image("AddClient/rotation_clé.svg"),
-    caption : "Rotation des clés"
-    ),
-    )
-    
+    columns: 2,
+    gutter: 1mm,
 
-  )
+    figure(
+      image("AddClient/selection_split.svg"),
+      caption: "Selection du noeud à séparer",
+      numbering: none,
+    ),
+    figure(
+      image("AddClient/insertion_d.svg"),
+      caption: "Insertion du nouveau récepteur",
+      numbering: none,
+    ),
+    grid.cell(colspan: 2, figure(
+      image("AddClient/rotation_clé.svg"),
+      caption: "Rotation des clés",
+      numbering: none,
+    )),
+  ),
+
+  caption: [Ajout d'un récepteur],
 )
-#todo()
+
 
 === Révocation d'un utilisateur
+La révocation impose des problèmes tout à fait différents. Il n'est pas possible de choisir une topologie alternative optimale car le noeud à supprimer est fixé. Cependant, un problème notable est que le noeud frêre du noeud à supprimer (a fortiori celui qui devra être "remonté") peut ne pas être une feuille mais être un sous-arbre. Il faut donc réparer les différents dictionnaires. D'autre part, la rotation de clé n'est pas nécessaire pour les 2 noeuds supprimés mais il est nécessaire d'envoyer une mise à jours pour indiquer que ces clés sont inutiles et peuvent être supprimées. La rotation ne doit donc être fait que pour le noeud grand-père de la feuille supprimée.
 
-#todo()
+#figure(
+  grid(columns: 3,gutter: 1mm,
+    figure(
+      image("RemoveClient/initial.svg"),
+      caption: "Noeuds à supprimer",
+      numbering: none,
+    ),
+    figure(
+      image("RemoveClient/DepthUpdate.svg"),
+      caption: "Correction récursive de la profondeur",
+      numbering: none,
+    ),
+    figure(
+      image("RemoveClient/keyupdate.svg"),
+      caption: "Rotation des clé",
+      numbering: none,
+    ),
+  ),
+  caption: [Procédure pour la révoquation d'un utilisateur]
+)
 
 
-=== Comparaisons 
-Pour évaluer l'intérêt pratique de ces organisations de clés en fonction du nombre d'utilisateurs, une simulation est réalisée : $n$ utilisateurs sont créés et commencent hors de l'arbre, à chaque étape un utilisateur est tiré équiprobablement et son état est changé (s'il était dans l'arbre il en sort et inversement) et ce pour $15n$ étapes. Il n'y a donc que des messages de contrôles.  
+
+=== Comparaisons
+Pour évaluer l'intérêt pratique de ces organisations de clés en fonction du nombre d'utilisateurs, une simulation est réalisée : $n$ utilisateurs sont créés et commencent hors de l'arbre, à chaque étape un utilisateur est tiré équiprobablement et son état est changé (s'il était dans l'arbre il en sort et inversement) et ce pour $15n$ étapes. Il n'y a donc que des messages de contrôles.
 #figure(
   grid(
     columns: 2,
-    image("ComparaisonUNIFClose.svg"),
-    image("ComparaisonUNIFLarge.svg")
+    image("ComparaisonUNIFClose.svg"), image("ComparaisonUNIFLarge.svg"),
   ),
-  caption: "Comparaison des algorithmes avec une répartition équiprobable des actions"
-  
+  caption: "Comparaison des algorithmes avec une répartition équiprobable des actions",
 )
 Ce résultat montre qu'il y a effectivement une réduction du nombre de chiffrement nécessaire relativement à une rotation de clé sans multicast, de l'ordre de 94%. Cependant, LKH+ semble augmenter le nombre de chiffrements nécessaires (Au minimum de 2% et au maximum de 216%). Pour autant cette simulation est réalisée dans le cas où chaque utilisateur à la même probabilité, or l'avantage théorique est quand un utilisateur reste hors de l'arbre puis le quitte. Un scénario plus avantageux pour LKH+ est testé, dans celui-ci, un utilisateur a une probabilité de 0.5 de réaliser une action et les autres utilisateurs sont répartis équiprobablement.
- 
+
 #figure(
   grid(
     columns: 2,
-    image("ComparaisonAnnoyingClose.svg"),
-    image("ComparaisonAnnoyingLarge.svg")
+    image("ComparaisonAnnoyingClose.svg"), image("ComparaisonAnnoyingLarge.svg"),
   ),
-  caption: "Comparaison des algorithmes avec une répartition d'action favorisant fortement un utilisateur"
-  
+  caption: "Comparaison des algorithmes avec une répartition d'action favorisant fortement un utilisateur",
 )
-Dans le cas où il y a un utilisateur réalisant des actions nettement plus fréquement, LKH+ peut réduire le nombre de chiffrement de 33% (ici quand le nombre maximal de RP hors arbres est de 8). 
+Dans le cas où il y a un utilisateur réalisant des actions nettement plus fréquement, LKH+ peut réduire le nombre de chiffrement de 33% (ici quand le nombre maximal de RP hors arbres est de 8).
 
 == Rust
 = Intégration
