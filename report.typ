@@ -29,6 +29,9 @@
   )
 
 ]
+
+#show "flexicast": "Flexicast"
+#show "rust": [Rust]
 // Cover page
 #template.cover(
   title,
@@ -303,7 +306,9 @@ En notant `kid{n}` les identifiants de clé et `k{n}` les clés, l'ajout d'un ut
 La révocation impose des problèmes tout à fait différents. Il n'est pas possible de choisir une topologie alternative optimale car le noeud à supprimer est fixé. Cependant, un problème notable est que le noeud frêre du noeud à supprimer (a fortiori celui qui devra être "remonté") peut ne pas être une feuille mais être un sous-arbre. Il faut donc réparer les différents dictionnaires. D'autre part, la rotation de clé n'est pas nécessaire pour les 2 noeuds supprimés mais il est nécessaire d'envoyer une mise à jours pour indiquer que ces clés sont inutiles et peuvent être supprimées. La rotation ne doit donc être fait que pour le noeud grand-père de la feuille supprimée.
 
 #figure(
-  grid(columns: 3,gutter: 1mm,
+  grid(
+    columns: 3,
+    gutter: 1mm,
     figure(
       image("RemoveClient/initial.svg"),
       caption: "Noeuds à supprimer",
@@ -320,7 +325,7 @@ La révocation impose des problèmes tout à fait différents. Il n'est pas poss
       numbering: none,
     ),
   ),
-  caption: [Procédure pour la révoquation d'un utilisateur]
+  caption: [Procédure pour la révoquation d'un utilisateur],
 )
 
 
@@ -345,7 +350,101 @@ Ce résultat montre qu'il y a effectivement une réduction du nombre de chiffrem
 )
 Dans le cas où il y a un utilisateur réalisant des actions nettement plus fréquement, LKH+ peut réduire le nombre de chiffrement de 33% (ici quand le nombre maximal de RP hors arbres est de 8).
 
-== Rust
+== rust
+Un module rust a ensuite été développé pour pouvoir béneficier des assurances de sécurité garantie par Rust et pour l'intégrer facilement dans flexicast Quiche. Cependant, Rust est un langage très différents de Python, notamment :
+- Rust n'est pas complétement orienté objet, il n'y a pas de d'héritage de classe mais des _structures_ implémentant des _traits_ composés d'un ensemble de fonction et d'autre traits. Il n'y a donc pas d'héritage de membre d'une structure.
+- Rust impose un système de possession, chaque donnée appartient à une *unique* entité. Il est possible de prêter la donnée ou une référence. Cependant, ce prêt est limité, il peut y avoir un nombre arbitraire de référence immuable (en lecture seule) mais il est alors impossible de la modifier, même par le propriétaire initial. D'autre part, il ne peut y avoir qu'une unique référence muable ce qui peut être problématique.
+=== Interfaces
+En se basant sur le module en python, un utilisateur est modélisé d'une manière analogue,
+#figure(
+  ```rs
+  pub struct User {
+      pub user_id: Vec<u8>,
+      pub send: Box<dyn Fn(KeyUpdatePacket) + Send + Sync>,
+  }
+  ```,
+)
+Chaque utilisateur doit donc avoir un identifiant unique et avoir une fonction qui envoie des `KeyUpdatePacket` tout en pouvant être transmis entre différents fils d'exécution.
+
+Il faut ensuite définir l'interface pour tous système de gestion clé. Il doit être possible d'ajouter des utilisateurs, de les révoquer et de récupérer la clé de session actuelle.
+#figure(
+  ```rs
+  pub trait LogicalTree {
+    ///Add a user designated by `user_id` and a fonction `send` that send a vec8 to the user.
+    fn add_user(&mut self, user_id: Vec<u8>, send: Box<dyn Fn(KeyUpdatePacket) + Send + Sync>) -> ();
+    ///Remove a user designated by `user_id`
+    fn remove_user(&mut self, user_id: Vec<u8>) -> ();
+    ///Return a tuple `(key_id, key)` if possible
+    fn get_session_key(&self) -> Option<(u64, &[u8])>;
+  }
+  ```,
+)
+
+Finalement, LKH est intarfacé de 2 manières :
+- Pour l'interface avec le flux multicast, celle reprend l'architecture du module Python en utilisant une fonction qui prend un `WrappedKeyUpdatePacket` et l'envoie sur le flux multicast :
+  #figure(
+    ```rs
+    pub struct Lkh {
+        tree: Tree,
+        key_size: usize,
+        send_group: Arc<Box<dyn Fn(WrappedKeyUpdatePacket) + Send + Sync>>,
+    }
+    ```,
+  )
+- Une interface pour la cryptographie est aussi nécessaire pour éviter d'augmenter le nombre de dépendance et de redondance dans Flexicast Quiche. Cette interface doit permettre de générer des clés, de chiffrer et de déchiffrer des messages. Pour cela, un fichier `lkhcrypto.rs` à part est créé et où trois fonction sont déclarées :
+
+
+#figure(
+      ```rust
+pub fn generate_key(key_size :usize) -> Vec<u8>
+      ```,
+    )
+    #figure(
+      ```rust
+pub fn lkh_encrypt(
+      packet: WrappedKeyUpdatePacket, 
+      algo: Algorithm, 
+      counter:u64) 
+      -> Result<KeylessWrappedKeyUpdatePacket,Error>
+      ```,
+    )
+    #figure(
+      
+      
+      ```rust
+pub fn lkh_decrypt(
+    packet: KeylessWrappedKeyUpdatePacket, 
+    key: Vec<u8>, 
+    algo: Algorithm,) -> Option<KeyUpdatePacket>
+      ```,
+    )
+
+=== Structures adoptées
+==== Arbre
+Pour être plus facile à adapter au système de possession de Rust, l'arbre est un array plutôt qu'une structure récursive. Cependant, un point notable est que les noeuds ont un identifiant défini de manière récursive. La racine a un identifiant de 1 et pour un noeud $n$, son noeud à gauche a un identifiant de $2n$ et celui de droite de $2n+1$, les noeuds sont ensuite stockés dans l'array en prenant leurs identifiant-1. Pour représenter un noeud vide, le type stocké dans l'array est un ```rs Option<Node>``` qui peut valoir soit ```rs Some(Node)``` ou ```rs None```. 
+#figure(
+  image("structureArbre.svg"),
+  caption: [Structure utilisée pour stocker l'arbre]
+
+)
+Cette structure a l'avantage de ne pas avoir de chaine de possession interne mais la modification de l'arbre est moins efficaces car les relations de parentées doivent être maintenue "manuellement" ce qui nécessite d'itérer sur tous les enfants pour les déplacer au bon index. 
+==== Paquets 
+Dans le module python, les paquets n'étaient pas définis proprement car ils n'avaient pas pour objectif d'être intégrés moins encore d'être standardisés. Ce n'est pas le cas pour le module Rust donc les paquets de mises à jours sont définis en 3 types : 
+- ```rs 
+struct KeyUpdatePacket {
+    /// The updated key vector
+    pub new_key: Vec<u8>,
+    /// The identifier designating the updated key
+    pub new_key_id: u64,
+    /// Should the updated key be the considered as the new session key
+    pub is_session_key: bool,
+    /// Should this key be removed from the list of keys of the receiver
+    pub delete_new_key: bool,}```, ce paquet est la base pour tous les paquets utilisés dans LKH, il ne peut être envoyé en tant que tel que sur le chemin unicast car il n'est pas chiffré.
+-  ```rs WrappedKeyUpdatePacket``` qui contiennent un KeyUpdatePacket en clair, l'identifiant de clé et la clé pour le chiffrement du paquet. Ce paquet ne doit donc jamais être envoyé sur le réseau.
+- ```rs KeylessWrappedKeyUpdatePacket``` qui est le WrappedKeyUpdatePacket après le chiffrement donc qui contient un KeyUpdatePacket chiffré et uniquement l'identifiant de clé pour ce chiffrement. Il est utilisé sur le chemin multicast. 
+Ces paquets sont ceux utilisés dans les fonctions interfaces.
+
+
 = Intégration
 
 #pagebreak()
@@ -357,3 +456,6 @@ Dans le cas où il y a un utilisateur réalisant des actions nettement plus fré
 #pagebreak()
 
 #bibliography("bib.yml")
+
+#pagebreak()
+#outline()
