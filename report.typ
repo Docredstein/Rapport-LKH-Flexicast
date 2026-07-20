@@ -246,7 +246,7 @@ Le processus standard pour rejoindre un flot Flexicast se déroule de la manièr
   image("schéma_fcquiche_louis.png"),
 
   caption: [Organisation des tâches Tokio d'un serveur Flexicast Quiche (directement issue de @Flexicast)],
-)
+)<FCQUICHE>
 
 Flexicast Quiche @FlexicastGithub est une implémentation de Flexicast (client et serveur) en Rust#box(image("rust.png", height: 0.5em), baseline: 0.25em)@rustLogo se basant sur l'implémentation de QUIC Quiche de Cloudflare et sur la bibliothèque Tokio@Tokio pour assurer l'exécution multitâche. Tokio est centré sur l'utilisation de tâches qui communiquent par passage de messages. Dans Flexicast Quiche, les catégories de tâches sont réparties en :
 
@@ -794,34 +794,86 @@ Un avantage de Rust est son support intégré pour les tests. Il est possible de
 
 #pagebreak()
 = Intégration
+Pour intégrer le module dans FCQuiche (Flexicast Quiche) il faut modifier la partie contrôle (donc la partie avec les contrôleurs présent dans @FCQUICHE) et la partie connexion (donc la partie gérant directement la connexion QUIC). Pour être plus compréhensible, l'explication va globalement suivre les messages envoyés.
+== Contrôleur
+=== Création de l'arbre
+Avant l'arrivée de tout récepteur, le contrôleur initialise un vecteur d'arbre binaire, un pour chaque flot Flexicast. Ceux-ci sont définis uniquement
+par le trait `LogicalTree` défini précédemment ```rs lkh_tree: Vec<Box<dyn LogicalTree>>```  ce qui permet de facilement changer de structure utilisée.
+Pour chaque flot, il est nécessaire de créer l'arbre avec une fonction permettant de communiquer avec le flux multicast. Cette fonction est créée en ajoutant un message entre le contrôleur racine et le flot flexicast
+```rs KeyUpdateNeededOnMC(WrappedKeyUpdatePacket),``` qui réutilise la définition des paquets précédentes.
+Ces messages sont ensuite envoyés dans la file d'attente de messages du contrôleur multicast avec #figure(```rs
+let captured = tx.clone();
+Arc::new(Box::new(move |packet| {
+      match captured.try_send(MsgFcSource::KeyUpdateNeededOnMC(packet)) {
+          Ok(_) => (),
+          Err(_) => println!("[LKH] Couldn't push a group key update to the channel")
+                }
+      }))```,caption: [Interface vers le flux multicast])
+En traitant ce message, le contrôleur multicast ajoute ces paquets à la file des clés à envoyer de sa connexion QUIC.
 
+D'autre part, les fonctions cryptographiques sont implémentées en réutilisant les fonctions utilisées pour chiffrer les paquets QUIC, cependant, elles nécessitents d'utiliser un compteur pour éviter les attaques par reémission. Pour cela, le contrôleur multicast maintient un compteur pour chaque ID de clé qu'il incrémente à chaque message ajouté dans la file.
+Pour des raisons de synchronisation expliquée plus en détail dans le @Connexion, le contrôleur multicast compte aussi le nombre total de clés envoyées sur le flux multicast.
 
+=== Entrée dans l'arbre
+Dans FCQuiche, quand un récepteur rejoint un flux Flexicast, le contrôleur feuille reçoit une message ```rs Join``` contenant l'ID unique du client, l'ID du flot et optionnelement le dernier paquet reçu sur le flot s'il l'avait déjà rejoint.
+Ce message a été étendu pour que le contrôleur propage ce message jusqu'au contrôleur racine.
+Quand le contrôleur racine recoit ce message il ajoute le client en créant la 2ème partie de l'interface :
+#figure(
+  ```rs
+  tree.add_user(
+                      recv_id.to_be_bytes().to_vec(),
+                      Box::new(move |packet| {
+                          for leaf in leaf_controllers.iter() {
+                              match leaf.try_send(MsgFcCtl::LKHChangeKeyUnicast((
+                                  recv_id,
+                                  FCKeyUpdate::KeyUpdate(packet.clone()),
+                              ))) {
+                                  Err(_) => {
+                                      println!("[LKH] root couldn't send message")
+                                  },
+                                  Ok(_) => (),
+                              }
+                          }
+                      }),
+                  );
+  ```,
+  caption: [Interface avec le flux unicast],
+  
+)
+Pour envoyer un message en unicast, le contrôleur racine envoit donc un message contenant le changement de clé à chaque contrôleurs feuille. Cette implémentation n'est pas vouée à rester car elle est inefficace dès lors qu'il y a au moins 2 contrôleurs feuilles.
+Quand un contrôleur feuille reçoit ce message, s'il connait le receiver_id il lui transfère le message et la clé est ajouté dans une file de la connection unicast.
 
+Avec ces deux interfaces préparées, l'arbre envoit des messages vers le flot multicast et les contrôleurs unicast pour actualiser les récepteurs.
+Une fois tous les messages de clés envoyés, un message est envoyé au contrôleur multicast lui indiquant la nouvelle clé de session, le numéro de paquet minimal pour le changement de clé et combien de clés doivent être envoyées avant d'appliquer la nouvelle clé.
+Le contrôleur multicast transfère cette notification à la connection QUIC en l'ajoutant dans une file de future changeemnt de session.
+
+=== Problèmes non résolus
+L'implémentation de LKH n'est pas encore complète du côté des contrôleurs. En effet, la synchronisation des acquittements n'est pas correcte car le premier numéro de paquet pour lequel le contrôleur racine s'attend à recevoir un acquittements est incorrect. Dans l'implémentation FCQuiche, l'ajout des clients se faisaient avant de transmettre des paquets sur le flux multicast ce qui n'est donc pas le cas avec LKH. Le premier paquet attendu était donc le premier paquet envoyé après avoir le message `Join` ce qui ne prend donc pas en compte les clés envoyées sur le multicast (Le nouveau récepteur ne doit recevoir des clés qu'en unicast uniquement). Pendant cet envoi, le récepteur n'écoute pas le flux multicast et ne l'acquitte donc pas ce qui semble saturer la connexion car les paquets ne sont jamais retransmis.
+
+Le révocation n'a pas encore été proprement implémentée car cette le départ d'utilisateur n'était pas encore  développé dans l'implémentation FCQuiche avant la fin du stage.
+Cependant, les interfaces sont déjà configurées donc l'ajout ne devrait théoriquement pas ajouter de complexité particulière.
+== Connexion <Connexion>
+
+#todo()
 
 
 #pagebreak()
-
+#bibliography("bib.yml")
+#pagebreak()
 = Annexe
-
-
-
-
 #figure(
-  image("ClientSideStateMachine.svg"),
-
+  image("ClientSideStateMachine.svg",height: 80%),
   caption: "Machine à état du client Flexicast",
 )<FlexicastClientStateMachine>
 
-#pagebreak()
 
 
 
 
-#bibliography("bib.yml")
 
 
 
 
-#pagebreak()
 
-#outline()
+
+

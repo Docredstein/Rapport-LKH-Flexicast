@@ -297,5 +297,6 @@
   show: apply-page.with(despair-mode: despair-mode, first-line-indent-all: first-line-indent-all)
   show: apply-heading
   show: apply-outline
+  show figure: it => rect(it, stroke:rgb(1, 66, 106),radius: 3mm)
   doc
 }
